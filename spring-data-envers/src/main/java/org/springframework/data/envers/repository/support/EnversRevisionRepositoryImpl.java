@@ -58,6 +58,7 @@ import org.springframework.util.Assert;
  * @author Julien Millau
  * @author Mark Paluch
  * @author Sander Bylemans
+ * @author Richard Vogel
  */
 @Transactional(readOnly = true)
 public class EnversRevisionRepositoryImpl<T, ID, N extends Number & Comparable<N>>
@@ -107,8 +108,11 @@ public class EnversRevisionRepositoryImpl<T, ID, N extends Number & Comparable<N
 		Assert.notNull(id, "Identifier must not be null");
 		Assert.notNull(revisionNumber, "Revision number must not be null");
 
-		List<Object[]> singleResult = (List<Object[]>) createBaseQuery(id) //
-				.add(AuditEntity.revisionNumber().eq(revisionNumber)) //
+		Class<T> type = entityInformation.getJavaType();
+		List<Object[]> singleResult = (List<Object[]>) getAuditReader() //
+				.createQuery() //
+				.forEntitiesAtRevision(type, revisionNumber) //
+				.add(AuditEntity.id().eq(id)) //
 				.getResultList();
 
 		Assert.state(singleResult.size() <= 1, "We expect at most one result");
@@ -161,11 +165,15 @@ public class EnversRevisionRepositoryImpl<T, ID, N extends Number & Comparable<N
 	private AuditQuery createBaseQuery(ID id) {
 
 		Class<T> type = entityInformation.getJavaType();
-		AuditReader reader = AuditReaderFactory.get(entityManager);
+		AuditReader reader = getAuditReader();
 
 		return reader.createQuery() //
 				.forRevisionsOfEntity(type, false, true) //
 				.add(AuditEntity.id().eq(id));
+	}
+
+	private AuditReader getAuditReader() {
+		return AuditReaderFactory.get(entityManager);
 	}
 
 	@SuppressWarnings("unchecked")
